@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: devconf-pvc
+  annotations:
+    kubernetes.io/reclaimPolicy: Delete
+spec:
+  storageClassName: standard
+  volumeName: devconf-pv
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

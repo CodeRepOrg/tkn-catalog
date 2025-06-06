@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: devconf-ahub-traditional-
+spec:
+  taskRunTemplate:
+    serviceAccountName: devconf-sa
+  pipelineRef:
+    name: traditional-pipeline
+  workspaces:
+    - name: shared-data
+      persistentVolumeClaim:
+        claimName: devconf-pvc
+  params:
+    - name: GIT_URL
+      value: https://github.com/CodeRepOrg/test-repo.git
+

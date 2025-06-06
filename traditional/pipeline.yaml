@@ -1,0 +1,86 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata: 
+  name: traditional-pipeline
+spec:
+  workspaces:
+    - name: shared-data
+  params:
+    - name: GIT_URL
+      type: string
+      description: Url of the repo
+      default: https://github.com/CodeRepOrg/test-repo.git
+    - name: YAML_PATH
+      type: string
+      description: Path to yaml file
+      default: kubernetes/deployment.yaml
+  tasks:
+    - name: clone
+      taskSpec:
+        steps:
+          - image: alpine/git
+            workingDir: $(workspaces.output.path)
+            script: |
+              rm -rf test-repo
+              echo $(params.GIT_URL)
+              git clone $(params.GIT_URL)
+              echo "$(workspaces.output.path)/test-repo" > $(results.repo_path.path)
+        results:
+          - name: repo_path
+      workspaces:
+        - name: output
+          workspace: shared-data
+
+    - name: build
+      runAfter:
+        - clone
+      taskSpec:
+        steps:
+          - image: quay.io/containers/buildah
+            workingDir: $(workspaces.output.path)
+            env:
+              - name: USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: container-secret
+                    key: username
+              - name: PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: container-secret
+                    key: password
+            script: |
+              buildah build -t docker.io/joaopedropp/devconf-ahub --storage-driver=overlay -f Dockerfile $(tasks.clone.results.repo_path)
+              buildah login docker.io -u $USERNAME -p $PASSWORD
+              buildah push docker.io/joaopedropp/devconf-ahub
+      workspaces:
+        - name: output
+          workspace: shared-data
+
+    - name: deploy
+      runAfter:
+        - build
+      taskSpec:
+        steps:
+          - image: alpine
+            name: update-yaml
+            workingDir: $(workspaces.output.path)
+            command:
+              - "sed"
+            args:
+              - "-i"
+              - "-e"
+              - "s;__IMAGE__;docker.io/joaopedropp/devconf-ahub:latest;g"
+              - "test-repo/$(params.YAML_PATH)"
+          - image: bitnami/kubectl
+            name: k8
+            workingDir: $(workspaces.output.path)
+            command:
+              - kubectl
+            args:
+              - apply
+              - "-f"
+              - "test-repo/$(params.YAML_PATH)"
+      workspaces:
+        - name: output
+          workspace: shared-data
