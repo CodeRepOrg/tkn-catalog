@@ -1,0 +1,20 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: devconf-ahub-hub-
+spec:
+  taskRunTemplate:
+    serviceAccountName: devconf-sa
+  pipelineRef:
+    name: artifact-pipeline
+  workspaces:
+    - name: shared-data
+      persistentVolumeClaim:
+        claimName: devconf-pvc-2
+    - name: dockerconfig
+      secret:
+        secretName: container-secret
+  params:
+    - name: GIT_URL
+      value: https://github.com/CodeRepOrg/test-repo.git
+
