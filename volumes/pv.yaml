@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: devconf-pv
+  name: devconf-pv-1
 spec:
   storageClassName: standard
   capacity:
@@ -9,5 +9,19 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /usr/app
+    path: /usr/app/pv1
+  persistentVolumeReclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: devconf-pv-2
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /usr/app/pv2
   persistentVolumeReclaimPolicy: Delete

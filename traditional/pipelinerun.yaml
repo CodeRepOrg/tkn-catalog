@@ -10,7 +10,7 @@ spec:
   workspaces:
     - name: shared-data
       persistentVolumeClaim:
-        claimName: devconf-pvc
+        claimName: devconf-pvc-1
   params:
     - name: GIT_URL
       value: https://github.com/CodeRepOrg/test-repo.git
