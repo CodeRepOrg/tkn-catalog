@@ -9,9 +9,6 @@ spec:
   workspaces:
     - name: output
       description: Volume that host the files
-    - name: cred
-      description: Credentials do push image
-      optional: true
   steps:
     - name: buildah
       image: quay.io/containers/buildah
