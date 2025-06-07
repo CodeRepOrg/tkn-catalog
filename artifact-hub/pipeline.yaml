@@ -1,10 +1,11 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata: 
   name: artifact-pipeline
 spec:
   workspaces:
     - name: shared-data
+    - name: dockerconfig-ws
   params:
     - name: GIT_URL
       type: string
@@ -31,106 +32,111 @@ spec:
       workspaces:
         - name: output
           workspace: shared-data
+          
+    # - name: build
+    #   runAfter:
+    #     - clone
+    #   taskRef:
+    #     resolver: hub
+    #     params:
+    #       - name: kind
+    #         value: task
+    #       - name: name
+    #         value: docker-build
+    #       - name: version
+    #         value: "0.1.0"
+    #   params:
+    #     - name: image
+    #       value: joaopedropp/devconf-ahub
+    #   workspaces:
+    #     - name: source
+    #       workspace: shared-data
 
     # - name: check
     #   runAfter:
-    #     - build
+    #     - deploy
     #   taskSpec:
     #     steps:
     #       - image: alpine
     #         script: |
-    #           ls $(workspaces.source.path)
+    #           cat $(workspaces.source.path)/$(params.YAML_PATH)
     #   workspaces:
     #     - name: source
     #       workspace: shared-data
-    #
-    # - name: test
-    #   runAfter:
-    #     - clone
-    #   taskRef:
-    #     name: buildah-jp
-    #   params:
-    #     - name: BUILDER_IMAGE
-    #       value: quay.io/containers/buildah
-    #     - name: IMAGE
-    #       value: docker.io/joaopedropp/devconf-ahub
-    #     - name: CONTEXT
-    #       value: $(workspaces.source.path)
-    #     - name: DOCKERFILE
-    #       value: "$(workspaces.source.path)/Dockerfile"
-    #     - name: SKIP_PUSH
-    #       value: true
-    #   workspaces:
-    #     - name: source
-    #       workspace: shared-data
-    #
-    # - name: build
-    #   runAfter:
-    #     - test
-    #   taskRef:
-    #     resolver: hub
-    #     params:
-    #       - name: kind
-    #         value: task
-    #       - name: name
-    #         value: buildah
-    #       - name: version
-    #         value: "0.9.0"
-    #   params:
-    #     # - name: BUILDER_IMAGE
-    #     #   value: quay.io/buildah/stable:v1
-    #     - name: IMAGE
-    #       value: docker.io/joaopedropp/devconf-ahub
-    #     - name: CONTEXT
-    #       value: $(workspaces.source.path)
-    #     - name: DOCKERFILE
-    #       value: "$(workspaces.source.path)/Dockerfile"
-    #     - name: SKIP_PUSH
-    #       value: true
-    #   workspaces:
-    #     - name: source
-    #       workspace: shared-data
-        # - name: dockerconfig
-        #   workspace: shared-data
 
     - name: build
       runAfter:
         - clone
-      taskSpec:
-        steps:
-          - image: quay.io/containers/buildah
-            workingDir: $(workspaces.output.path)
-            env:
-              - name: USERNAME
-                valueFrom:
-                  secretKeyRef:
-                    name: container-secret
-                    key: username
-              - name: PASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    name: container-secret
-                    key: password
-            script: |
-              buildah build -t docker.io/joaopedropp/devconf-ahub --storage-driver=overlay -f Dockerfile .
-              buildah login docker.io -u $USERNAME -p $PASSWORD
-              buildah push docker.io/joaopedropp/devconf-ahub
+      taskRef:
+        name: buildah-personal
+      params:
+        - name: IMAGE
+          value: docker.io/joaopedropp/devconf-ahub
       workspaces:
         - name: output
           workspace: shared-data
+        - name: cred
+          workspace: dockerconfig-ws
 
-    # - name: deploy
-    #   runAfter: build
+    # - name: build11
+    #   runAfter:
+    #     - clone
     #   taskRef:
-    #     resolver: hub
+    #     resolver: git
     #     params:
-    #       - name: kind
-    #         value: task
-    #       - name: name
-    #         value: kubectl-deploy-pod
-    #       - name: version
-    #         value: "0.1.0"
-    #
+    #       - name: url
+    #         value: https://github.com/tektoncd/catalog.git
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: task/buildah/0.9/buildah.yaml
+    #   params:
+    #     # - name: BUILDER_IMAGE
+    #     #   value: quay.io/buildah/stable:v1
+    #     # - name: BUILDER_IMAGE
+    #     #   value: quay.io/containers/buildah
+    #     - name: IMAGE
+    #       value: docker.io/joaopedropp/devconf-ahub
+    #     - name: CONTEXT
+    #       value: $(workspaces.source.path)
+    #     - name: DOCKERFILE
+    #       value: Dockerfile
+    #     - name: SKIP_PUSH
+    #       value: true
+    #   workspaces:
+    #     - name: source
+    #       workspace: shared-data
+    #     - name: sslcertdir
+    #       workspace: dockerconfig-ws
+        # - name: dockerconfig
+        #   workspace: shared-data
+
+    # - name: build
+    #   runAfter:
+    #     - clone
+    #   taskSpec:
+    #     steps:
+    #       - image: quay.io/containers/buildah
+    #         workingDir: $(workspaces.output.path)
+    #         env:
+    #           - name: USERNAME
+    #             valueFrom:
+    #               secretKeyRef:
+    #                 name: container-secret
+    #                 key: username
+    #           - name: PASSWORD
+    #             valueFrom:
+    #               secretKeyRef:
+    #                 name: container-secret
+    #                 key: password
+    #         script: |
+    #           buildah build -t docker.io/joaopedropp/devconf-ahub --storage-driver=overlay -f Dockerfile .
+    #           buildah login docker.io -u $USERNAME -p $PASSWORD
+    #           buildah push docker.io/joaopedropp/devconf-ahub
+    #   workspaces:
+    #     - name: output
+    #       workspace: shared-data
+
     - name: deploy
       runAfter:
         - build
@@ -139,6 +145,11 @@ spec:
           - image: alpine
             name: update-yaml
             workingDir: $(workspaces.output.path)
+            # script: |
+            #   sed -i -e "s;__IMAGE__;docker.io/joaopedropp/devconf-ahub:latest;g" $(params.YAML_PATH)
+            #   dep_path=$(workspaces.output.path)/$(params.YAML_PATH)
+            #   # printf '%s' "${dep_path}" | tee "$(results.deployment_path.path)"
+            #   cat "${dep_path}" | tee "$(results.deployment_path.path)"
             command:
               - "sed"
             args:
@@ -155,6 +166,26 @@ spec:
               - apply
               - "-f"
               - "$(params.YAML_PATH)"
+        # results:
+        #   - name: deployment_path
       workspaces:
         - name: output
           workspace: shared-data
+
+    # - name: deploy
+    #   runAfter:
+    #     - set-new-image
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/tektoncd/catalog.git
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: task/kubernetes-actions/0.2/kubernetes-actions.yaml
+    #   params:
+    #     - name: script
+    #       value: |
+    #         cat $(tasks.set-new-image.results.deployment_path) | kubectl apply -f -
+    #         # kubectl apply -f $(tasks.set-new-image.results.deployment_path)

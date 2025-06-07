@@ -1,0 +1,40 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: buildah-personal
+spec:
+  params:
+    - name: IMAGE
+      description: Reference of the image buildah will produce.
+  workspaces:
+    - name: output
+      description: Volume that host the files
+    - name: cred
+      description: Credentials do push image
+      optional: true
+  steps:
+    - name: buildah
+      image: quay.io/containers/buildah
+      workingDir: $(workspaces.output.path)
+      env:
+        - name: CRED
+          value: $(workspaces.cred.path)/config.json
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: container-secret
+              key: username
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: container-secret
+              key: password
+        - name: IMG
+          value: $(params.IMAGE)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+
+        buildah build -t ${IMG} --storage-driver=overlay .
+        buildah login docker.io -u $USERNAME -p $PASSWORD
+        buildah push docker.io/joaopedropp/devconf-ahub

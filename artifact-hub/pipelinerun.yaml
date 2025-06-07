@@ -11,9 +11,10 @@ spec:
     - name: shared-data
       persistentVolumeClaim:
         claimName: devconf-pvc-2
-    - name: dockerconfig
+    - name: dockerconfig-ws
       secret:
-        secretName: container-secret
+        # secretName: quay-secret
+        secretName: dockerconfig-secret
   params:
     - name: GIT_URL
       value: https://github.com/CodeRepOrg/test-repo.git
